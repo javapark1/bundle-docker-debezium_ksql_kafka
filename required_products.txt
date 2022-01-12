@@ -11,7 +11,7 @@
 # coherence=12.2.1.4,14.1.x
 #
 
-none=1
+#none=1
 #coherence=
 #hazelcast=
 #hazelcast-enterprise=
