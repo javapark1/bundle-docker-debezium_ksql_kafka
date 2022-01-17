@@ -5,14 +5,27 @@ SCRIPT_DIR="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
 EXECUTABLE="`basename $0`"
 
 if [ "$HELP" == "true" ]; then
-   echo "Usage:"
-   echo "   ./$EXECUTABLE [-?]"
-   echo ""
-   echo "   Copies the geode jar files to the 'padogrid' directory which is mounted"
-   echo "   by the Docker Geode connector container."
-   echo ""
-   echo "Default: ./$EXECUTABLE"
-   echo ""
+cat <<EOF
+NAME
+   $EXECUTABLE - Build and prepare debezium_ksql_kafka environment
+
+SYNOPSIS
+   $EXECUTABLE [-?]
+
+DESCRIPTION
+   Build and prepare debezium_ksql_kafka environment by copying or downloading the geode
+   jar files to the 'padogrid' directory which is mounted" by the Docker Geode connector
+   container.
+
+ENVIRONMENT VARIABLES
+   GEODE_VERSION
+             If GEODE_VERSION is set in the 'setenv.sh' file, then this script
+             downloads the specified version of Geode. This variable should be
+             set if your application does not require Geode locally installed.
+
+DEFAULT
+   ./$EXECUTABLE"
+EOF
    exit
 fi
 
@@ -37,7 +50,18 @@ if [ ! -d padogrid/etc ]; then
    mkdir -p padogrid/etc
 fi
 
-cp $GEODE_HOME/lib/*.jar padogrid/lib/
+# Clean binary dirs
+rm padogrid/lib/*
+rm padogrid/plugins/*
+
+if [ "$GEODE_HOME" != "" ] && [ -d "$GEODE_HOME" ]; then
+   cp $GEODE_HOME/lib/*.jar padogrid/lib/
+else
+   if [ "$GEODE_VERSION" != "" ]; then
+      sed -i$__SED_BACKUP  -e "s/>.*<\/geode.version>/>$GEODE_VERSION<\/geode.version>/" pom-geode.xml
+   fi
+   mvn install -f pom-geode.xml
+fi
 cp $PADOGRID_HOME/lib/padogrid-common*.jar padogrid/lib/
 cp $PADOGRID_HOME/geode/lib/geode-addon-core*.jar padogrid/lib/
 # Test jars

@@ -18,7 +18,7 @@ This use case ingests data changes made in the MySQL database into a Geode clust
 
 ## Required Software
 
-- Docker
+- PadoGrid 0.9.13+
 - Docker Compose
 - Maven 3.x
 
@@ -26,11 +26,17 @@ This use case ingests data changes made in the MySQL database into a Geode clust
 
 - jq
 
-## Building Demo
+## Building Environment
 
-:pencil2: This bundle builds the demo enviroment based on the Geode version in your workspace. Make sure your workspace has been configured with the desired version before building the demo environment.
+First, let's create `perf_test_ksql` for ingesting mock data into MySQL.
 
-Before you begin, make sure you are in a Geode product context by switching into a Geode cluster. You can create a Geode cluster if it does not exist as shown below.
+```bash
+create_app -product geode -app perf_test -name perf_test_ksql
+```
+
+Next, prepare Geode. You can run this bundle with or without Geode installed. Please follow one of the options below.
+
+### Option 1. Using Installed Geode
 
 ```bash
 # Create the default cluster named, 'mygeode'
@@ -39,6 +45,36 @@ make_cluster -product geode
 # Switch to the 'mygeode' cluster to set the product context
 switch_cluster mygeode
 ```
+
+### Option 2. Using Geode Binary Files
+
+Set `GEODE_VERSION` by editing the `setenv.sh` file.
+
+```bash
+cd_docker debezium_ksql_kafka; cd bin_sh
+vi setenv.sh
+```
+
+Enter a Geode version of your choice in the `setenv.sh` file. 
+
+```bash
+GEODE_VERSION=1.14.2
+```
+
+Similary, set `GEODE_VERSION` for the `perf_test_ksql` app as follows.
+
+```bash
+cd_app perf_test_ksql/bin_sh
+vi setenv.sh
+```
+
+Enter the same Geode version as the setp above in the `setenv.sh` file.
+
+```bash
+GEODE_VERSION=1.14.2
+```
+
+### Building `debezium_ksql_kafka`
 
 We must first build the bundle by running the `build_app` command as shown below. This command copies the Geode, `padogrid-common`, and `geode-addon-core` jar files to the Docker container mounted volume in the `padogrid` directory so that the Geode Debezium Kafka connector can include them in its class path. It also downloads the ksql JDBC driver jar and its dependencies in the `padogrid/lib/jdbc` directory.
 
@@ -53,7 +89,6 @@ Upon successful build, the `padogrid` directory should have jar files similar to
 cd_docker debezium_ksql_kafka
 tree padogrid
 ```
-
 
 ```console
 padogrid/
@@ -70,14 +105,43 @@ padogrid/
     └── geode-addon-core-0.9.13-SNAPSHOT-tests.jar
 ```
 
+### Building `perf_test_ksql`
+
+We also need to build `perf_test_ksql` to download the required MySQL JDBC driver.
+
+```bash
+cd_app perf_test_ksql/bin_sh
+./build_app
+```
+
+Set the MySQL user name and password for `perf_test_ksql`:
+
+```bash
+cd_app perf_test_ksql
+vi etc/hibernate.cfg-mysql.xml
+```
+
+Set user name and password as follows:
+
+```xml
+                <property name="connection.username">debezium</property>
+                <property name="connection.password">dbz</property>
+```
+
 
 ## Creating Geode Docker Containers
 
-Let's create a Geode cluster to run on Docker containers as follows. If you have not installed Geode, then run the `install_padogrid -product geode` command to install the version of your choice and then run the `update_product -product geode` command to set the version.
+We now create a Geode cluster to run on Docker containers as follows.
 
 ```bash
 create_docker -product geode -cluster geode -host host.docker.internal
+```
+
+If you have not installed Geode, then the Geode Docker image version is configured as `latest`. You can change it to match the version you have previously set for `debezium_ksql_kafka` and `perf_test_ksql` in the `docker-compose.yaml` as follow.
+
+```bash
 cd_docker geode
+vi docker-compose.yaml
 ```
 
 If you are running Docker Desktop, then the host name, `host.docker.internal`, is accessible from the containers as well as the host machine. You can run the `ping` command to check the host name.
@@ -109,30 +173,6 @@ Replace `host.docker.internal` in `client-cache.xml` with your host IP address.
     </pool>
    ...
 </client-cache>
-```
-
-## Creating `perf_test_ksql` app
-
-Create and build `perf_test_ksql` for ingesting mock data into MySQL:
-
-```bash
-create_app -product geode -app perf_test -name perf_test_ksql
-cd_app perf_test_ksql; cd bin_sh
-./build_app
-```
-
-Set the MySQL user name and password for `perf_test_ksql`:
-
-```bash
-cd_app perf_test_ksql
-vi etc/hibernate.cfg-mysql.xml
-```
-
-Set user name and password as follows:
-
-```xml
-                <property name="connection.username">debezium</property>
-                <property name="connection.password">dbz</property>
 ```
 
 ## Startup Sequence
